@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0e0f">
+<title>ZEPHON</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23151618'/%3E%3Cpolygon fill='white' points='24,28 80,28 80,37 51,63 80,63 80,72 22,72 22,63 52,37 24,37'/%3E%3Cline x1='10' y1='90' x2='90' y2='10' stroke='%23151618' stroke-width='5'/%3E%3Cpolygon fill='white' points='90,10 14,88 19,92'/%3E%3C/svg%3E">
+<style>
+  :root { --bg:#151618; --shell:#0d0e0f; --surf:#232426; --surf2:#2d2e31; --line:#34353a; --fg:#f3f3f4; --muted:#9b9ca1;
+    --dw:min(84vw,320px); --ease:cubic-bezier(.32,.72,0,1); box-sizing:border-box; }
+  *, *::before, *::after { box-sizing:inherit; }
+  [hidden] { display:none !important; }
+  html, body { height:100%; margin:0; background:var(--shell); color:var(--fg); overflow:hidden;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
+  body { height:100dvh; padding: env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px); }
+  button, select, textarea, input { font:inherit; color:inherit; }
+  button { -webkit-tap-highlight-color:transparent; }
+  svg.i { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+  #app { height:100%; }
+
+  /* ===== Animations ===== */
+  @keyframes monte { from { opacity:0; transform:translateY(12px) scale(.98); } to { opacity:1; transform:none; } }
+  @keyframes apparait { from { opacity:0; filter:blur(6px); transform:translateY(6px); } to { opacity:1; filter:none; transform:none; } }
+  @keyframes glisse { from { opacity:0; transform:translateX(-18px); } to { opacity:1; transform:none; } }
+  @keyframes respire { 0%,100% { transform:translateY(0) scale(1); } 50% { transform:translateY(-6px) scale(1.04); } }
+  @keyframes rebond { 0%,80%,100% { transform:translateY(0); opacity:.4; } 40% { transform:translateY(-6px); opacity:1; } }
+  @keyframes tourne { to { transform:rotate(360deg); } }
+  @keyframes flotte { from { transform:translate(-4%,-3%) scale(1); } to { transform:translate(4%,3%) scale(1.12); } }
+  @keyframes balaie { from { transform:translateX(-120%) skewX(-20deg); } to { transform:translateX(320%) skewX(-20deg); } }
+  @keyframes entree { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:none; } }
+
+  /* ===== Connexion ===== */
+  .ecran { position:relative; overflow:hidden; height:100%; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:16px; padding:24px; text-align:center; background:var(--bg); }
+  .ecran::before { content:""; position:absolute; inset:-25%;
+    background: radial-gradient(40% 40% at 28% 30%, rgba(255,255,255,.08), transparent 70%),
+                radial-gradient(35% 35% at 72% 70%, rgba(120,140,255,.10), transparent 70%);
+    animation: flotte 12s ease-in-out infinite alternate; }
+  .ecran > * { position:relative; animation: entree .8s var(--ease) both; }
+  .ecran > :nth-child(2) { animation-delay:.08s; } .ecran > :nth-child(3) { animation-delay:.16s; }
+  .ecran > :nth-child(4) { animation-delay:.24s; } .ecran > :nth-child(5) { animation-delay:.32s; }
+  .ecran h1 { margin:0; font-size:20px; letter-spacing:6px; font-weight:600; }
+  .ecran p { color:var(--muted); margin:0; max-width:320px; line-height:1.45; }
+  .ecran .err { color:#ff8a8a; min-height:1.4em; }
+  .logo { color:#fff; --cut:var(--bg); }
+  .logo.grand { width:84px; height:84px; animation: respire 4s ease-in-out infinite; }
+  .gbtn { position:relative; overflow:hidden; display:flex; align-items:center; gap:12px; margin-top:8px; padding:0 26px;
+    height:54px; border-radius:27px; border:1px solid #44454b; background:#1d1e21; color:#fff; font-weight:600;
+    font-size:16px; cursor:pointer; transition: transform .2s var(--ease), border-color .2s, box-shadow .3s, background .2s; }
+  .gbtn svg.g { width:22px; height:22px; }
+  .gbtn:hover { border-color:#7c7d85; background:#232427; box-shadow:0 8px 30px rgba(255,255,255,.08); transform:translateY(-2px); }
+  .gbtn:active { transform:scale(.96); }
+  .gbtn:disabled { opacity:.7; cursor:default; }
+  .gbtn .brille { position:absolute; top:0; bottom:0; left:0; width:40%; background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent); transform:translateX(-120%) skewX(-20deg); }
+  .gbtn:hover .brille { animation: balaie .9s ease; }
+  .gbtn.charge svg.g { animation: tourne .9s linear infinite; }
+
+  /* ===== Structure : menu qui décale la page ===== */
+  .shell { position:relative; height:100%; overflow:hidden; background:var(--shell); }
+  .drawer { --cut:var(--shell); position:absolute; top:0; bottom:0; left:0; width:var(--dw); display:flex; flex-direction:column;
+    padding:14px 12px 12px; opacity:0; transform:translateX(-30px); pointer-events:none;
+    transition: transform .5s var(--ease), opacity .35s; }
+  .main { position:absolute; inset:0; background:var(--bg); transform-origin:left center; overflow:hidden;
+    transition: transform .5s var(--ease), border-radius .5s var(--ease), box-shadow .5s; }
+  .shell.ouvert .drawer { opacity:1; transform:none; pointer-events:auto; }
+  .shell.ouvert .main { transform: translateX(var(--dw)) scale(.93); border-radius:28px; box-shadow:-14px 0 50px rgba(0,0,0,.55); }
+  .voile { position:absolute; inset:0; z-index:20; display:none; }
+  .shell.ouvert .voile { display:block; }
+
+  .d-top { display:flex; align-items:center; gap:10px; padding:6px 8px 14px; font-weight:600; letter-spacing:4px; font-size:15px; }
+  .d-top .logo { width:28px; height:28px; }
+  .nouv { display:flex; align-items:center; gap:10px; width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:14px;
+    background:var(--surf); cursor:pointer; transition: transform .2s var(--ease), background .2s; }
+  .nouv:hover { background:var(--surf2); transform:translateY(-1px); } .nouv:active { transform:scale(.97); }
+  .liste { flex:1; overflow-y:auto; margin:12px -4px 8px; padding:0 4px; }
+  .liste .vide { color:var(--muted); font-size:14px; padding:10px 8px; line-height:1.4; }
+  .groupe { color:var(--muted); font-size:12px; letter-spacing:.5px; padding:12px 8px 6px; }
+  .item { display:flex; align-items:center; border-radius:12px; }
+  .shell.ouvert .item, .shell.ouvert .groupe { animation: glisse .45s var(--ease) both; animation-delay: calc(var(--i,0) * 35ms + 120ms); }
+  .item:hover, .item.actif { background:var(--surf); }
+  .it-titre { flex:1; min-width:0; text-align:left; background:none; border:0; padding:11px 10px; cursor:pointer;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:15px; }
+  .it-sup { background:none; border:0; width:34px; height:34px; border-radius:10px; cursor:pointer; color:var(--muted); display:grid; place-items:center; }
+  .it-sup:hover { color:#ff8a8a; background:var(--surf2); }
+  .compte { display:flex; align-items:center; gap:12px; width:100%; padding:10px; border:0; border-radius:16px; background:var(--surf);
+    cursor:pointer; text-align:left; transition: transform .2s var(--ease), background .2s; }
+  .compte:hover { background:var(--surf2); } .compte:active { transform:scale(.97); }
+  .compte .infos { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .compte b { font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .compte span { color:var(--muted); font-size:13px; }
+  .av { width:40px; height:40px; border-radius:50%; background:#3a3b40; display:grid; place-items:center; font-weight:600;
+    font-size:17px; overflow:hidden; flex:none; }
+  .av img { width:100%; height:100%; object-fit:cover; display:block; }
+  .av.grand { width:84px; height:84px; font-size:34px; }
+
+  .col { max-width:760px; margin:0 auto; width:100%; height:100%; display:flex; flex-direction:column; }
+  .top { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; }
+  .rond { width:38px; height:38px; border-radius:12px; border:0; background:var(--surf); display:grid; place-items:center;
+    cursor:pointer; padding:0; transition: transform .2s var(--ease), background .2s; }
+  .rond:hover { background:var(--surf2); } .rond:active { transform:scale(.88); }
+  .pill { background:var(--surf); border-radius:12px; padding:9px 16px; font-size:14px; }
+
+  #fil { flex:1; overflow-y:auto; padding:0 16px; display:flex; flex-direction:column; }
+  #accueil { margin:auto; text-align:center; padding-bottom:40px; }
+  #accueil .logo { width:60px; height:60px; animation: respire 4.5s ease-in-out infinite; }
+  #accueil h1 { font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight:500; letter-spacing:-.02em; font-size:30px; margin:14px 0 0;
+    animation: monte .8s var(--ease) both; }
+  #msgs { display:flex; flex-direction:column; gap:20px; padding:8px 0 20px; }
+  .u { align-self:flex-end; max-width:85%; background:var(--surf2); padding:10px 14px; border-radius:14px; line-height:1.45;
+    white-space:pre-wrap; overflow-wrap:anywhere; animation: monte .4s var(--ease) both; }
+  .a { align-self:flex-start; max-width:100%; line-height:1.55; overflow-wrap:anywhere; animation: monte .4s var(--ease) both; }
+  .a .txt { white-space:pre-wrap; animation: apparait .6s ease both; }
+  .a pre { background:#0f1011; border:1px solid var(--line); border-radius:12px; padding:12px; overflow-x:auto; font-size:13px;
+    margin:10px 0; animation: apparait .6s ease both; }
+  .pts { display:inline-flex; gap:5px; padding:6px 2px; }
+  .pts i { width:8px; height:8px; border-radius:50%; background:var(--fg); animation: rebond 1.1s ease-in-out infinite; }
+  .pts i:nth-child(2) { animation-delay:.15s; } .pts i:nth-child(3) { animation-delay:.3s; }
+  .actions { display:flex; gap:4px; margin-top:8px; animation: apparait .5s ease both; }
+  .actions button { background:none; border:0; border-radius:8px; width:32px; height:32px; display:grid; place-items:center;
+    cursor:pointer; opacity:.65; padding:0; transition: transform .2s var(--ease), opacity .2s, background .2s; }
+  .actions button:hover { opacity:1; background:var(--surf); } .actions button:active { transform:scale(.8); }
+  .actions svg { width:16px; height:16px; stroke:var(--fg); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .actions button.on svg { fill:var(--fg); }
+
+  .saisie { margin:0 12px 12px; background:var(--surf); border-radius:20px; padding:12px 12px 10px; transition: box-shadow .3s; }
+  .saisie:focus-within { box-shadow:0 0 0 1px #4a4b52, 0 10px 40px rgba(0,0,0,.35); }
+  textarea { width:100%; resize:none; background:none; border:0; outline:0; padding:4px 6px; max-height:140px; line-height:1.4; font-size:16px; }
+  textarea::placeholder { color:var(--muted); }
+  .bas { display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
+  .droite { display:flex; align-items:center; gap:8px; }
+  .chip { display:flex; align-items:center; gap:6px; background:none; border:0; color:var(--muted); font-size:14px; padding:8px 10px;
+    border-radius:12px; cursor:pointer; transition: background .2s, color .2s; }
+  .chip:hover { background:var(--surf2); color:var(--fg); }
+  .envoi { position:relative; width:38px; height:38px; border-radius:50%; border:0; background:#fff; color:#000; display:grid;
+    place-items:center; cursor:pointer; padding:0; transition: transform .2s var(--ease), opacity .2s; }
+  .envoi:active { transform:scale(.85); } .envoi:disabled { opacity:.5; cursor:default; }
+  .envoi.charge::after { content:""; position:absolute; inset:-4px; border-radius:50%; border:2px solid transparent;
+    border-top-color:#fff; animation: tourne .8s linear infinite; }
+
+  /* ===== Feuilles (modèles, paramètres) ===== */
+  .sheet { position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end; justify-content:center; background:rgba(0,0,0,0);
+    pointer-events:none; transition: background .35s; }
+  .sheet.ouvert { background:rgba(0,0,0,.6); pointer-events:auto; }
+  .panneau { width:100%; max-width:480px; max-height:88dvh; overflow-y:auto; background:var(--surf); border-radius:26px 26px 0 0;
+    padding:22px 18px calc(22px + env(safe-area-inset-bottom,0px)); transform:translateY(105%); transition: transform .5s var(--ease); }
+  .sheet.ouvert .panneau { transform:none; }
+  .panneau h2 { margin:0 0 14px; font-size:19px; }
+  .carte { position:relative; display:block; width:100%; text-align:left; background:var(--surf2); border:1px solid transparent;
+    border-radius:16px; padding:14px 16px; margin-bottom:10px; cursor:pointer; transition: transform .2s var(--ease), border-color .2s, background .2s; }
+  .carte:hover { border-color:var(--line); transform:translateY(-2px); } .carte:active { transform:scale(.98); }
+  .carte.actif { border-color:#fff; }
+  .sheet.ouvert .carte { animation: monte .5s var(--ease) both; animation-delay: calc(var(--i,0) * 70ms + 120ms); }
+  .carte b { font-size:16px; } .carte small { color:var(--muted); margin-left:8px; }
+  .carte p { margin:6px 0 0; color:var(--muted); font-size:14px; line-height:1.4; }
+  .carte .coche { position:absolute; top:14px; right:14px; opacity:0; transform:scale(.4); transition: all .3s var(--ease); }
+  .carte.actif .coche { opacity:1; transform:none; }
+  .carte.pro { border:1px dashed var(--line); background:none; cursor:default; }
+  .carte.pro:hover { transform:none; }
+  .champ { display:flex; gap:8px; margin:8px 0 4px; }
+  .champ input { flex:1; min-width:0; background:var(--surf2); border:1px solid var(--line); border-radius:12px; padding:11px 12px; outline:0; font-size:16px; }
+  .champ input:focus { border-color:#7c7d85; }
+  .btn { background:var(--surf2); border:1px solid var(--line); border-radius:12px; padding:10px 14px; cursor:pointer; font-size:14px;
+    transition: transform .2s var(--ease), background .2s; }
+  .btn:hover { background:#383a3e; } .btn:active { transform:scale(.95); }
+  .btn.plein { background:#fff; color:#000; border-color:#fff; font-weight:600; }
+  .btn.danger { color:#ff9a9a; }
+  .btn:disabled { opacity:.45; cursor:default; }
+  .profil { display:flex; align-items:center; gap:16px; margin-bottom:6px; }
+  .profil .boutons { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+  .rang { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .note { color:var(--muted); font-size:13px; line-height:1.45; margin:10px 0 0; }
+  .sep { border:0; border-top:1px solid var(--line); margin:18px 0; }
+  .ok { color:#8fe3a0; font-size:13px; min-height:1.3em; margin:4px 0 0; }
+
+  /* ===== Ordinateur : menu fixe à gauche ===== */
+  @media (min-width:900px) {
+    .shell { display:flex; }
+    .drawer { position:relative; opacity:1; transform:none; pointer-events:auto; flex:none; border-right:1px solid var(--line); }
+    .drawer .item, .drawer .groupe { animation:none !important; }
+    .main { position:relative; flex:1; transform:none !important; border-radius:0 !important; box-shadow:none !important; }
+    #menuBtn { visibility:hidden; }
+    .voile { display:none !important; }
+    .saisie { margin-bottom:24px; }
+    #accueil h1 { font-size:36px; }
+    .sheet { align-items:center; }
+    .panneau { border-radius:26px; transform:translateY(30px) scale(.95); opacity:0; transition: transform .45s var(--ease), opacity .3s; }
+    .sheet.ouvert .panneau { transform:none; opacity:1; }
+  }
+
+  /* ===== Animations (suite) ===== */
+  @keyframes surgit { 0% { opacity:0; transform:translateY(28px) scale(.9); filter:blur(8px); }
+    100% { opacity:1; transform:none; filter:none; } }
+  @keyframes pulse { 0% { transform:scale(1); } 40% { transform:scale(.95); } 100% { transform:scale(1); } }
+  @keyframes pop { 0% { transform:scale(.94); } 60% { transform:scale(1.04); } 100% { transform:none; } }
+  @keyframes onde { 0% { opacity:.45; transform:scale(.6); } 100% { opacity:0; transform:scale(1.9); } }
+  .saisie { transition: box-shadow .4s var(--ease), transform .4s var(--ease), background .3s; }
+  .saisie:focus-within { transform:translateY(-3px); background:#2a2b2e;
+    box-shadow:0 0 0 1px #5d5e66, 0 18px 50px rgba(0,0,0,.5), 0 0 60px rgba(255,255,255,.05); }
+  textarea { transition: height .3s var(--ease); }
+  .envoi::before { content:""; position:absolute; inset:0; border-radius:50%; background:#fff; opacity:0; pointer-events:none; }
+  .envoi:active::before { animation: onde .5s ease-out; }
+  .rond:active svg.i, .chip:active { transform:scale(.9); }
+  .chip svg.i { transition: transform .35s var(--ease); }
+  .chip[aria-expanded="true"] svg.i { transform:rotate(180deg); }
+  /* Trois barres qui se transforment en croix */
+  #menuBtn svg .l1, #menuBtn svg .l3 { transition: transform .5s var(--ease); transform-box:view-box; transform-origin:12px 12px; }
+  #menuBtn svg .l2 { transition: opacity .25s, transform .4s var(--ease); transform-box:view-box; }
+  #menuBtn.x svg .l1 { transform: translateY(5px) rotate(45deg); }
+  #menuBtn.x svg .l3 { transform: translateY(-5px) rotate(-45deg); }
+  #menuBtn.x svg .l2 { opacity:0; transform:translateX(-8px); }
+  /* Choix de l'IA : entrée plus marquée et rebond au clic */
+  .sheet.ouvert .carte { animation: surgit .6s cubic-bezier(.34,1.45,.64,1) both; animation-delay: calc(var(--i,0) * 90ms + 160ms); }
+  .carte.tap { animation: pulse .45s var(--ease); }
+  .carte .coche { transition: opacity .3s, transform .45s cubic-bezier(.34,1.56,.64,1); }
+  /* Bouton Inviter */
+  .nouv.fait { animation: pop .55s var(--ease); border-color:#8fe3a0; color:#8fe3a0; }
+  .inviter { margin-top:8px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Logo réutilisable : un Z avec une lame -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="z" viewBox="0 0 100 100">
+    <polygon fill="currentColor" points="24,28 80,28 80,37 51,63 80,63 80,72 22,72 22,63 52,37 24,37"/>
+    <line x1="10" y1="90" x2="90" y2="10" style="stroke:var(--cut)" stroke-width="5"/>
+    <polygon fill="currentColor" points="90,10 14,88 19,92"/>
+  </symbol>
+</svg>
+
+<!-- Écran de connexion -->
+<div id="login" class="ecran" hidden>
+  <svg class="logo grand"><use href="#z"/></svg>
+  <h1>ZEPHON</h1>
+  <p>Ton IA, ton espace. Connecte-toi pour retrouver tes discussions.</p>
+  <button id="gbtn" class="gbtn" type="button">
+    <span class="brille"></span>
+    <svg class="g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    <span id="gtxt">Continuer avec Google</span>
+  </button>
+  <p id="loginMsg" class="err" role="alert"></p>
+</div>
+
+<!-- Application -->
+<div id="app" hidden>
+  <div id="shell" class="shell">
+
+    <aside id="drawer" class="drawer" aria-label="Menu">
+      <div class="d-top"><svg class="logo"><use href="#z"/></svg><span>ZEPHON</span></div>
+      <button id="nouvelle" class="nouv" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nouvelle discussion</button>
+      <div id="liste" class="liste"></div>
+      <button id="compte" class="compte" type="button" aria-label="Ouvrir les paramètres">
+        <div id="avBas" class="av"></div>
+        <div class="infos"><b id="nomBas">Invité</b><span>Plan gratuit</span></div>
+        <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </aside>
+
+    <div id="main" class="main">
+      <div id="voile" class="voile"></div>
+      <div class="col">
+        <header class="top">
+          <button id="menuBtn" class="rond" type="button" aria-label="Menu"><svg class="i" viewBox="0 0 24 24"><path class="l1" d="M4 7h16"/><path class="l2" d="M4 12h16"/><path class="l3" d="M4 17h16"/></svg></button>
+          <div class="pill">Plan gratuit</div>
+          <button id="plus" class="rond" type="button" aria-label="Nouvelle discussion"><svg class="i" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+        </header>
+
+        <main id="fil">
+          <div id="accueil">
+            <svg class="logo"><use href="#z"/></svg>
+            <h1 id="salut">Bonjour</h1>
+          </div>
+          <div id="msgs"></div>
+        </main>
+
+        <form id="f" class="saisie">
+          <textarea id="t" rows="1" placeholder="Comment puis-je t’aider ?"></textarea>
+          <div class="bas">
+            <button id="chip" class="chip" type="button" aria-label="Choisir l’IA">
+              <span id="chipNom">Gemini</span>
+              <svg class="i" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="droite">
+              <button id="b" class="envoi" type="submit" aria-label="Envoyer"><svg class="i" viewBox="0 0 24 24" style="stroke-width:2.4"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Choix de l'IA -->
+  <div id="sheetIA" class="sheet">
+    <div class="panneau">
+      <h2>Choisis ton IA</h2>
+      <div id="modeles"></div>
+    </div>
+  </div>
+
+  <!-- Paramètres -->
+  <div id="sheetReg" class="sheet">
+    <div class="panneau">
+      <h2>Paramètres</h2>
+      <div class="profil">
+        <div id="avReg" class="av grand"></div>
+        <div class="boutons">
+          <button id="btnPhoto" class="btn plein" type="button">Changer la photo</button>
+          <button id="btnPhotoSupp" class="btn" type="button">Photo Google</button>
+          <input id="inputPhoto" type="file" accept="image/*" hidden>
+        </div>
+      </div>
+      <label class="note" for="nomInput">Nom affiché</label>
+      <div class="champ">
+        <input id="nomInput" type="text" maxlength="30" autocomplete="off" placeholder="Ton prénom">
+        <button id="btnNom" class="btn" type="button">Enregistrer</button>
+      </div>
+      <p id="regOk" class="ok" role="status"></p>
+      <hr class="sep">
+      <div class="rang"><span>Plan : <b>Gratuit</b></span><button class="btn" type="button" disabled>Passer en Pro, bientôt</button></div>
+      <p class="note">Tes discussions sont enregistrées sur cet appareil, avec ton compte.</p>
+      <hr class="sep">
+      <div class="rang">
+        <button id="btnClear" class="btn danger" type="button">Effacer mes discussions</button>
+        <button id="btnDeco" class="btn" type="button">Se déconnecter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ====== RÉGLAGE ======
+  // Colle ici ton identifiant client Google (il finit par .apps.googleusercontent.com).
+  // Laisse vide pour désactiver la connexion Google.
+  var GOOGLE_CLIENT_ID = "";
+
+  var MODELES = [
+    { id: "gemini", nom: "Gemini", par: "Google", desc: "Polyvalent et très complet. Le bon choix par défaut." },
+    { id: "groq", nom: "Llama 3.3", par: "via Groq", desc: "Ultra rapide : les réponses arrivent presque instantanément." },
+    { id: "mistral", nom: "Mistral", par: "Mistral AI", desc: "Une IA française, très à l’aise en français." }
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var historique = [];
+  var session = "";
+  var profil = null;
+  var prefs = { name: "", photo: "" };
+  var enCours = false;
+  var currentId = null;
+  var codeClient = null;
+  var ia = "gemini";
+  try {
+    var memoIA = localStorage.getItem("zephon_ia");
+    if (MODELES.some(function (m) { return m.id === memoIA; })) ia = memoIA;
+  } catch (e) {}
+
+  var ICONES = {
+    copier: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+    aime: '<svg viewBox="0 0 24 24"><path d="M7 11v9H4v-9h3zM7 11l4-8c1.5 0 2.5 1 2.5 2.5V9H19a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.8 20H7"/></svg>',
+    aimePas: '<svg viewBox="0 0 24 24" style="transform:rotate(180deg)"><path d="M7 11v9H4v-9h3zM7 11l4-8c1.5 0 2.5 1 2.5 2.5V9H19a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.8 20H7"/></svg>',
+    partager: '<svg viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>',
+    refaire: '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>',
+    croix: '<svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    coche: '<svg class="i" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+  };
+
+  // ---------- Compte : session, profil, préférences ----------
+  function decoder(jeton) {
+    try {
+      var s = jeton.split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
+      while (s.length % 4) s += "=";
+      return JSON.parse(decodeURIComponent(escape(atob(s))));
+    } catch (e) { return null; }
+  }
+  function sessionValide(jeton) {
+    var p = jeton && decoder(jeton);
+    return !!(p && p.sub && p.exp * 1000 > Date.now());
+  }
+  function sauverSession(jeton) {
+    try { if (jeton) localStorage.setItem("zephon_session", jeton); else localStorage.removeItem("zephon_session"); } catch (e) {}
+  }
+  function cleUtilisateur() { return profil ? profil.sub : "invite"; }
+  function lirePrefs() {
+    try { return Object.assign({ name: "", photo: "" }, JSON.parse(localStorage.getItem("zephon_prefs_" + cleUtilisateur()) || "{}")); }
+    catch (e) { return { name: "", photo: "" }; }
+  }
+  function ecrirePrefs() {
+    try { localStorage.setItem("zephon_prefs_" + cleUtilisateur(), JSON.stringify(prefs)); } catch (e) {}
+  }
+  function nomAffiche() {
+    return prefs.name || (profil && (profil.given_name || profil.name)) || "";
+  }
+  function peindreAvatar(el) {
+    el.textContent = "";
+    var src = prefs.photo || (profil && profil.picture) || "";
+    var lettre = (nomAffiche() || "I").charAt(0).toUpperCase();
+    if (src) {
+      var img = document.createElement("img");
+      img.alt = "";
+      img.referrerPolicy = "no-referrer";
+      img.onerror = function () { el.textContent = lettre; };
+      img.src = src;
+      el.appendChild(img);
+    } else {
+      el.textContent = lettre;
+    }
+  }
+  function salutation() {
+    var h = new Date().getHours();
+    var mot = h < 5 ? "Bonsoir" : h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir";
+    var n = nomAffiche();
+    return n ? mot + ", " + n : mot;
+  }
+  function majCompte() {
+    $("nomBas").textContent = nomAffiche() || "Invité";
+    peindreAvatar($("avBas"));
+    $("salut").textContent = salutation();
+  }
+
+  // ---------- Connexion Google (bouton personnalisé) ----------
+  function etatLogin(charge, msg) {
+    $("gbtn").classList.toggle("charge", charge);
+    $("gbtn").disabled = charge;
+    $("gtxt").textContent = charge ? "Connexion…" : "Continuer avec Google";
+    $("loginMsg").textContent = msg || "";
+  }
+  function initGoogle() {
+    try {
+      codeClient = google.accounts.oauth2.initCodeClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: "openid email profile",
+        ux_mode: "popup",
+        callback: function (rep) {
+          if (rep && rep.code) echanger(rep.code); else etatLogin(false, "Connexion annulée.");
+        },
+        error_callback: function (err) {
+          etatLogin(false, err && err.type === "popup_failed_to_open"
+            ? "La fenêtre Google n’a pas pu s’ouvrir. Autorise les pop-ups puis réessaie."
+            : "Connexion annulée.");
+        }
+      });
+    } catch (e) {}
+  }
+  async function echanger(code) {
+    etatLogin(true, "");
+    try {
+      var r = await fetch("/api/login", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: code })
+      });
+      var d = await r.json();
+      if (!r.ok) throw new Error((d.error && d.error.message) || "Connexion impossible");
+      session = d.session;
+      sauverSession(session);
+      profil = d.profile;
+      etatLogin(false, "");
+      afficherApp();
+    } catch (e) {
+      etatLogin(false, e.message);
+    }
+  }
+  function afficherLogin(message) {
+    $("app").hidden = true;
+    $("login").hidden = false;
+    etatLogin(false, message || "");
+  }
+  function deconnecter(message) {
+    session = ""; profil = null; sauverSession("");
+    historique = []; currentId = null;
+    $("msgs").textContent = "";
+    fermerSheet("sheetIA"); fermerSheet("sheetReg"); menu(false);
+    afficherLogin(message);
+  }
+
+  // ---------- Menu qui décale la page, feuilles ----------
+  function menu(ouvert) { $("shell").classList.toggle("ouvert", ouvert); $("menuBtn").classList.toggle("x", ouvert); }
+  function ouvrirSheet(id) { $(id).classList.add("ouvert"); }
+  function fermerSheet(id) { $(id).classList.remove("ouvert"); }
+
+  // ---------- Discussions enregistrées (sur cet appareil, par compte) ----------
+  function cleStock() { return "zephon_convos_" + cleUtilisateur(); }
+  function lireConvos() {
+    try { return JSON.parse(localStorage.getItem(cleStock()) || "[]"); } catch (e) { return []; }
+  }
+  function ecrireConvos(l) {
+    try { localStorage.setItem(cleStock(), JSON.stringify(l.slice(0, 50))); } catch (e) {}
+  }
+  function sauverCourante() {
+    if (!historique.length) return;
+    if (!currentId) currentId = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    var premiere = historique.filter(function (m) { return m.role === "user"; })[0];
+    var titre = premiere ? premiere.content.replace(/\s+/g, " ").trim().slice(0, 40) : "Discussion";
+    var l = lireConvos().filter(function (c) { return c.id !== currentId; });
+    l.unshift({ id: currentId, title: titre, updated: Date.now(), messages: historique.slice() });
+    ecrireConvos(l);
+    rendreListe();
+  }
+  function rendreListe() {
+    var l = lireConvos();
+    var box = $("liste");
+    box.textContent = "";
+    if (!l.length) {
+      var v = document.createElement("p");
+      v.className = "vide";
+      v.textContent = "Tes discussions apparaîtront ici.";
+      box.appendChild(v);
+      return;
+    }
+    var debut = new Date().setHours(0, 0, 0, 0);
+    var ordre = ["Aujourd’hui", "Cette semaine", "Plus ancien"];
+    var groupes = {};
+    l.forEach(function (c) {
+      var g = c.updated >= debut ? ordre[0] : c.updated >= debut - 6 * 864e5 ? ordre[1] : ordre[2];
+      (groupes[g] = groupes[g] || []).push(c);
+    });
+    var i = 0;
+    ordre.forEach(function (nom) {
+      if (!groupes[nom]) return;
+      var t = document.createElement("div");
+      t.className = "groupe";
+      t.style.setProperty("--i", i++);
+      t.textContent = nom;
+      box.appendChild(t);
+      groupes[nom].forEach(function (c) {
+        var it = document.createElement("div");
+        it.className = "item" + (c.id === currentId ? " actif" : "");
+        it.style.setProperty("--i", i++);
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "it-titre"; b.textContent = c.title;
+        b.addEventListener("click", function () { ouvrirConvo(c.id); });
+        var s = document.createElement("button");
+        s.type = "button"; s.className = "it-sup"; s.title = "Supprimer"; s.setAttribute("aria-label", "Supprimer");
+        s.innerHTML = ICONES.croix; // icône fixe écrite dans ce fichier
+        s.addEventListener("click", function () { supprimerConvo(c.id); });
+        it.appendChild(b); it.appendChild(s);
+        box.appendChild(it);
+      });
+    });
+  }
+  function ouvrirConvo(id) {
+    if (enCours) return;
+    var c = lireConvos().filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    currentId = id;
+    historique = c.messages.slice();
+    $("msgs").textContent = "";
+    $("accueil").hidden = true;
+    historique.forEach(function (m) {
+      if (m.role === "user") ajouterUser(m.content);
+      else { var x = ajouterIA(); rendre(x.contenu, m.content); x.activer(m.content); }
+    });
+    menu(false);
+    rendreListe();
+    defiler();
+  }
+  function supprimerConvo(id) {
+    ecrireConvos(lireConvos().filter(function (c) { return c.id !== id; }));
+    if (id === currentId) nouvelle(); else rendreListe();
+  }
+  function nouvelle() {
+    if (enCours) return;
+    historique = []; currentId = null;
+    $("msgs").textContent = "";
+    $("accueil").hidden = false;
+    $("salut").textContent = salutation();
+    menu(false);
+    rendreListe();
+    if (window.matchMedia("(pointer:fine)").matches) $("t").focus();
+  }
+
+  // ---------- Affichage des messages ----------
+  function defiler() { $("fil").scrollTop = $("fil").scrollHeight; }
+
+  // Affiche le texte sans jamais exécuter de HTML (code entre ``` et **gras**).
+  function rendre(el, texte) {
+    el.textContent = "";
+    texte.split("```").forEach(function (morceau, i) {
+      if (i % 2 === 1) {
+        var nl = morceau.indexOf("\n");
+        var code = nl > -1 ? morceau.slice(nl + 1) : morceau;
+        var pre = document.createElement("pre");
+        var c = document.createElement("code");
+        c.textContent = code.replace(/\n$/, "");
+        pre.appendChild(c);
+        el.appendChild(pre);
+      } else if (morceau) {
+        var d = document.createElement("div");
+        d.className = "txt";
+        morceau.split("**").forEach(function (s, j) {
+          if (!s) return;
+          if (j % 2 === 1) {
+            var st = document.createElement("strong");
+            st.textContent = s;
+            d.appendChild(st);
+          } else {
+            d.appendChild(document.createTextNode(s));
+          }
+        });
+        el.appendChild(d);
+      }
+    });
+  }
+  function ajouterUser(texte) {
+    var d = document.createElement("div");
+    d.className = "u";
+    d.textContent = texte;
+    $("msgs").appendChild(d);
+    defiler();
+  }
+  function bouton(icone, titre, action) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.title = titre;
+    b.setAttribute("aria-label", titre);
+    b.innerHTML = icone; // icônes fixes écrites dans ce fichier, jamais du texte reçu
+    b.addEventListener("click", action);
+    return b;
+  }
+  function points() {
+    var p = document.createElement("span");
+    p.className = "pts";
+    for (var i = 0; i < 3; i++) p.appendChild(document.createElement("i"));
+    return p;
+  }
+  function ajouterIA() {
+    var box = document.createElement("div");
+    box.className = "a";
+    var contenu = document.createElement("div");
+    contenu.appendChild(points());
+    var actions = document.createElement("div");
+    actions.className = "actions";
+    actions.hidden = true;
+    box.appendChild(contenu);
+    box.appendChild(actions);
+    document.querySelectorAll(".regen").forEach(function (x) { x.remove(); });
+    $("msgs").appendChild(box);
+    defiler();
+
+    function activer(texte) {
+      var like, dislike;
+      actions.appendChild(bouton(ICONES.copier, "Copier", function () {
+        try { navigator.clipboard.writeText(texte); } catch (e) {}
+      }));
+      like = bouton(ICONES.aime, "J’aime", function () { like.classList.toggle("on"); dislike.classList.remove("on"); });
+      dislike = bouton(ICONES.aimePas, "Je n’aime pas", function () { dislike.classList.toggle("on"); like.classList.remove("on"); });
+      actions.appendChild(like);
+      actions.appendChild(dislike);
+      actions.appendChild(bouton(ICONES.partager, "Partager", function () {
+        if (navigator.share) navigator.share({ text: texte }).catch(function () {});
+        else { try { navigator.clipboard.writeText(texte); } catch (e) {} }
+      }));
+      var regen = bouton(ICONES.refaire, "Régénérer", function () { regenerer(box); });
+      regen.classList.add("regen");
+      actions.appendChild(regen);
+      actions.hidden = false;
+    }
+    return { box: box, contenu: contenu, activer: activer };
+  }
+
+  // ---------- Échanges avec le serveur ----------
+  function pause(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+
+  // Délai max de 30 s, et jusqu'à 4 essais si le serveur est surchargé.
+  async function appeler(bulle) {
+    var charge = { provider: ia, messages: historique };
+    if (session) charge.session = session;
+    var corps = JSON.stringify(charge);
+    var derniere = "erreur inconnue";
+    var dernierStatut = 0;
+    for (var essai = 1; essai <= 4; essai++) {
+      var statut = 0;
+      var ctrl = new AbortController();
+      var timer = setTimeout(function () { ctrl.abort(); }, 30000);
+      try {
+        var r = await fetch("/api/chat", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: corps, signal: ctrl.signal
+        });
+        statut = r.status;
+        var d = await r.json();
+        if (r.ok) return d;
+        derniere = (d.error && d.error.message) || String(statut);
+      } catch (e) {
+        derniere = e.name === "AbortError" ? "Pas de réponse du serveur" : e.message;
+      } finally {
+        clearTimeout(timer);
+      }
+      dernierStatut = statut;
+      var reessayer = statut === 0 || statut === 429 || statut >= 500;
+      if (!reessayer) break;
+      if (essai < 4) {
+        bulle.textContent = "Le serveur est surchargé, je réessaie (" + essai + "/3)…";
+        await pause(3000 * essai);
+      }
+    }
+    var er = new Error(derniere);
+    er.code = dernierStatut;
+    throw er;
+  }
+  async function repondre() {
+    var x = ajouterIA();
+    enCours = true;
+    $("b").disabled = true;
+    $("b").classList.add("charge");
+    try {
+      var d = await appeler(x.contenu);
+      var rep = d.text || "(pas de réponse)";
+      rendre(x.contenu, rep);
+      historique.push({ role: "assistant", content: rep });
+      x.activer(rep);
+      sauverCourante();
+    } catch (e) {
+      x.contenu.textContent = "Erreur : " + e.message;
+      if (historique.length && historique[historique.length - 1].role === "user") historique.pop();
+      if (e.code === 401) deconnecter("Ta session a expiré, reconnecte-toi.");
+    }
+    enCours = false;
+    $("b").disabled = false;
+    $("b").classList.remove("charge");
+    defiler();
+  }
+  async function envoyer(texte) {
+    if (enCours) return;
+    $("accueil").hidden = true;
+    ajouterUser(texte);
+    historique.push({ role: "user", content: texte });
+    await repondre();
+  }
+  function regenerer(box) {
+    if (enCours || box !== $("msgs").lastElementChild) return;
+    if (historique.length && historique[historique.length - 1].role === "assistant") historique.pop();
+    box.remove();
+    repondre();
+  }
+
+  // ---------- Choix de l'IA ----------
+  function majChip() {
+    var m = MODELES.filter(function (x) { return x.id === ia; })[0];
+    $("chipNom").textContent = m ? m.nom : "IA";
+  }
+  function construireModeles() {
+    var box = $("modeles");
+    box.textContent = "";
+    MODELES.forEach(function (m, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "carte" + (m.id === ia ? " actif" : "");
+      b.style.setProperty("--i", i);
+      var t = document.createElement("div");
+      var nom = document.createElement("b"); nom.textContent = m.nom;
+      var par = document.createElement("small"); par.textContent = m.par;
+      t.appendChild(nom); t.appendChild(par);
+      var p = document.createElement("p"); p.textContent = m.desc;
+      var c = document.createElement("span"); c.className = "coche"; c.innerHTML = ICONES.coche; // icône fixe
+      b.appendChild(t); b.appendChild(p); b.appendChild(c);
+      b.addEventListener("click", function () {
+        ia = m.id;
+        b.classList.add("tap");
+        try { localStorage.setItem("zephon_ia", ia); } catch (e) {}
+        majChip();
+        construireModeles();
+        setTimeout(function () { fermerSheet("sheetIA"); }, 180);
+      });
+      box.appendChild(b);
+    });
+    var pro = document.createElement("div");
+    pro.className = "carte pro";
+    pro.style.setProperty("--i", MODELES.length);
+    var pt = document.createElement("b"); pt.textContent = "Plus d’IA avec Pro";
+    var pp = document.createElement("p"); pp.textContent = "Bientôt : de nouveaux modèles réservés au plan Pro.";
+    pro.appendChild(pt); pro.appendChild(pp);
+    box.appendChild(pro);
+  }
+
+  // ---------- Paramètres ----------
+  function msgReg(texte) {
+    $("regOk").textContent = texte;
+    setTimeout(function () { if ($("regOk").textContent === texte) $("regOk").textContent = ""; }, 2500);
+  }
+  function ouvrirReglages() {
+    menu(false);
+    $("nomInput").value = prefs.name || (profil ? (profil.given_name || profil.name || "") : "");
+    peindreAvatar($("avReg"));
+    $("btnPhotoSupp").hidden = !prefs.photo;
+    $("regOk").textContent = "";
+    ouvrirSheet("sheetReg");
+  }
+  function traiterPhoto(fichier) {
+    var url = URL.createObjectURL(fichier);
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var c = document.createElement("canvas");
+        c.width = c.height = 128;
+        var x = c.getContext("2d");
+        var s = Math.min(img.width, img.height);
+        x.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 128, 128);
+        prefs.photo = c.toDataURL("image/jpeg", 0.82);
+        ecrirePrefs(); majCompte(); peindreAvatar($("avReg"));
+        $("btnPhotoSupp").hidden = false;
+        msgReg("Photo enregistrée ✓");
+      } catch (e) { msgReg("Impossible de lire cette image."); }
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = function () { msgReg("Impossible de lire cette image."); URL.revokeObjectURL(url); };
+    img.src = url;
+  }
+
+  // ---------- Démarrage de l'application ----------
+  function afficherApp() {
+    $("login").hidden = true;
+    $("app").hidden = false;
+    prefs = lirePrefs();
+    historique = []; currentId = null;
+    $("msgs").textContent = "";
+    $("accueil").hidden = false;
+    majCompte(); majChip(); construireModeles(); rendreListe();
+    if (window.matchMedia("(pointer:fine)").matches) $("t").focus();
+  }
+
+  // ---------- Branchements ----------
+  var t = $("t");
+  $("f").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var v = t.value.trim();
+    if (!v) return;
+    t.value = "";
+    t.style.height = "auto";
+    envoyer(v);
+  });
+  t.addEventListener("input", function () {
+    t.style.height = "auto";
+    t.style.height = Math.min(t.scrollHeight, 140) + "px";
+  });
+  // Sur ordinateur : Entrée envoie, Maj+Entrée fait un retour à la ligne.
+  t.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(pointer:fine)").matches) {
+      e.preventDefault();
+      $("f").requestSubmit();
+    }
+  });
+  $("menuBtn").addEventListener("click", function () { menu(!$("shell").classList.contains("ouvert")); });
+  $("voile").addEventListener("click", function () { menu(false); });
+  $("nouvelle").addEventListener("click", nouvelle);
+  $("plus").addEventListener("click", nouvelle);
+  $("compte").addEventListener("click", ouvrirReglages);
+  $("chip").addEventListener("click", function () { construireModeles(); ouvrirSheet("sheetIA"); });
+  ["sheetIA", "sheetReg"].forEach(function (id) {
+    $(id).addEventListener("click", function (e) { if (e.target === $(id)) fermerSheet(id); });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    fermerSheet("sheetIA"); fermerSheet("sheetReg"); menu(false);
+  });
+  $("btnPhoto").addEventListener("click", function () { $("inputPhoto").click(); });
+  $("inputPhoto").addEventListener("change", function () {
+    var f = this.files && this.files[0];
+    this.value = "";
+    if (f) traiterPhoto(f);
+  });
+  $("btnPhotoSupp").addEventListener("click", function () {
+    prefs.photo = ""; ecrirePrefs(); majCompte(); peindreAvatar($("avReg"));
+    $("btnPhotoSupp").hidden = true;
+    msgReg("Photo Google rétablie ✓");
+  });
+  $("btnNom").addEventListener("click", function () {
+    prefs.name = $("nomInput").value.trim().slice(0, 30);
+    ecrirePrefs(); majCompte(); peindreAvatar($("avReg"));
+    msgReg("Enregistré ✓");
+  });
+  $("nomInput").addEventListener("keydown", function (e) { if (e.key === "Enter") $("btnNom").click(); });
+  $("btnClear").addEventListener("click", function () {
+    if (!confirm("Effacer toutes tes discussions enregistrées sur cet appareil ?")) return;
+    ecrireConvos([]);
+    nouvelle();
+    msgReg("Discussions effacées ✓");
+  });
+  $("btnDeco").addEventListener("click", function () { deconnecter(""); });
+  $("gbtn").addEventListener("click", function () {
+    if (!codeClient) { $("loginMsg").textContent = "Google se charge encore, réessaie dans une seconde."; return; }
+    etatLogin(true, "");
+    codeClient.requestCode();
+  });
+
+  // ---------- Démarrage ----------
+  if (!GOOGLE_CLIENT_ID) {
+    afficherApp(); // connexion Google désactivée : mode invité
+  } else {
+    var memo = "";
+    try { memo = localStorage.getItem("zephon_session") || ""; } catch (e) {}
+    if (sessionValide(memo)) {
+      session = memo;
+      profil = decoder(memo);
+      afficherApp();
+    } else {
+      afficherLogin("");
+      setTimeout(function () {
+        if (!window.google && !$("login").hidden) $("loginMsg").textContent = "Google ne se charge pas. Vérifie ta connexion et recharge la page.";
+      }, 6000);
+    }
+  }
+</script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="if (GOOGLE_CLIENT_ID) initGoogle()"></script>
+</body>
+</html>
