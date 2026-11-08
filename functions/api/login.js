@@ -1,5 +1,4 @@
-// Connexion avec Google : échange le code reçu contre l'identité de la personne,
-// puis crée une session signée, valable 30 jours.
+// Connexion : Google, GitHub ou Microsoft. Crée une session signée valable 30 jours.
 const DUREE = 30 * 24 * 3600; // en secondes
 
 function json(obj, status) {
@@ -28,6 +27,10 @@ function enOctets(b64url) {
   return a;
 }
 
+function lireJeton(b64url) {
+  return JSON.parse(new TextDecoder().decode(enOctets(b64url)));
+}
+
 async function signer(texte, secret) {
   const cle = await crypto.subtle.importKey(
     "raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
@@ -36,70 +39,40 @@ async function signer(texte, secret) {
   return enBase64Url(new Uint8Array(sig));
 }
 
-export async function onRequestPost(context) {
-  const { request, env } = context;
+const FOURNISSEURS = {
+  google: { nom: "Google", vars: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"] },
+  github: { nom: "GitHub", vars: ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"] },
+  microsoft: { nom: "Microsoft", vars: ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"] },
+};
 
-  // Refuse les appels qui ne viennent pas de ton propre site
-  const origin = request.headers.get("Origin");
-  if (origin && origin !== new URL(request.url).origin) {
-    return erreur("Origine refusée", 403);
-  }
-
-  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.SESSION_SECRET) {
-    return erreur("La connexion Google n'est pas encore configurée sur le serveur", 500);
-  }
-
-  let body;
-  try {
-    body = await request.json();
-  } catch (e) {
-    return erreur("Requête invalide", 400);
-  }
-  if (!body.code || typeof body.code !== "string") return erreur("Requête invalide", 400);
-
-  // On donne le code à Google, qui répond avec l'identité de la personne
-  let r;
-  try {
-    r = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code: body.code,
-        client_id: env.GOOGLE_CLIENT_ID,
-        client_secret: env.GOOGLE_CLIENT_SECRET,
-        redirect_uri: "postmessage",
-        grant_type: "authorization_code",
-      }),
-    });
-  } catch (e) {
-    return erreur("Impossible de joindre Google", 502);
-  }
-  let d = {};
-  try {
-    d = await r.json();
-  } catch (e) {}
-  if (!r.ok || !d.id_token) return erreur("Connexion refusée par Google", 401);
-
-  // Le jeton vient directement de Google (connexion sécurisée) : on vérifie quand même à qui il s'adresse
-  let infos;
-  try {
-    infos = JSON.parse(new TextDecoder().decode(enOctets(d.id_token.split(".")[1])));
-  } catch (e) {
-    return erreur("Réponse de Google invalide", 502);
-  }
+// Google : code échangé en mode popup (redirect_uri = "postmessage")
+async function profilGoogle(code, env) {
+  const r = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code: code,
+      client_id: env.GOOGLE_CLIENT_ID,
+      client_secret: env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: "postmessage",
+      grant_type: "authorization_code",
+    }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.id_token) return null;
+  const infos = lireJeton(d.id_token.split(".")[1]);
   const emetteurOk = infos.iss === "https://accounts.google.com" || infos.iss === "accounts.google.com";
-  if (infos.aud !== env.GOOGLE_CLIENT_ID || !emetteurOk || !infos.sub) {
-    return erreur("Connexion refusée", 401);
-  }
-
-  const profil = {
-    sub: String(infos.sub),
-    name: String(infos.name || "").slice(0, 80),
-    given_name: String(infos.given_name || "").slice(0, 40),
-    picture: /^https:\/\//.test(infos.picture || "") ? infos.picture : "",
-  };
-  const payload = Object.assign({}, profil, { exp: Math.floor(Date.now() / 1000) + DUREE });
-  const p = enBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
-  const session = p + "." + (await signer(p, env.SESSION_SECRET));
-  return json({ session: session, profile: profil }, 200);
+  if (infos.aud !== env.GOOGLE_CLIENT_ID || !emetteurOk || !infos.sub) return null;
+  return { sub: String(infos.sub), name: infos.name, given_name: infos.given_name, picture: infos.picture };
 }
+
+// GitHub : échange du code, puis lecture du profil
+async function profilGitHub(code, redirect, env) {
+  const r = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.GITHUB_CLIENT_ID,
+      client_secret: env.GITHUB_CLIENT_SECRET,
+      code: code,
+      redirect_uri:
