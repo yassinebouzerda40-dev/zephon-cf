@@ -75,4 +75,100 @@ async function profilGitHub(code, redirect, env) {
       client_id: env.GITHUB_CLIENT_ID,
       client_secret: env.GITHUB_CLIENT_SECRET,
       code: code,
-      redirect_uri:
+      redirect_uri: redirect,
+    }),
+  });
+  const t = await r.json().catch(() => ({}));
+  if (!t.access_token) return null;
+  const u = await fetch("https://api.github.com/user", {
+    headers: {
+      Authorization: "Bearer " + t.access_token,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "ZEPHON",
+    },
+  });
+  const d = await u.json().catch(() => ({}));
+  if (!d.id) return null;
+  const nom = d.name || d.login || "";
+  return {
+    sub: "github:" + d.id,
+    name: nom,
+    given_name: nom.split(" ")[0],
+    picture: d.avatar_url,
+  };
+}
+
+// Microsoft : échange du code, le jeton d'identité vient directement de Microsoft
+async function profilMicrosoft(code, redirect, env) {
+  const r = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.MICROSOFT_CLIENT_ID,
+      client_secret: env.MICROSOFT_CLIENT_SECRET,
+      code: code,
+      redirect_uri: redirect,
+      grant_type: "authorization_code",
+      scope: "openid profile email",
+    }),
+  });
+  const t = await r.json().catch(() => ({}));
+  if (!t.id_token) return null;
+  const infos = lireJeton(t.id_token.split(".")[1]);
+  if (infos.aud !== env.MICROSOFT_CLIENT_ID || !infos.sub || !infos.exp || infos.exp * 1000 < Date.now()) return null;
+  const nom = infos.name || infos.preferred_username || "";
+  return {
+    sub: "microsoft:" + infos.sub,
+    name: nom,
+    given_name: infos.given_name || nom.split(" ")[0],
+    picture: "",
+  };
+}
+
+export async function onRequestPost(context) {
+  const { request, env } = context;
+
+  // Refuse les appels qui ne viennent pas de ton propre site
+  const origin = request.headers.get("Origin");
+  if (origin && origin !== new URL(request.url).origin) {
+    return erreur("Origine refusée", 403);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return erreur("Requête invalide", 400);
+  }
+  if (!body.code || typeof body.code !== "string") return erreur("Requête invalide", 400);
+
+  const id = body.provider || "google";
+  const fournisseur = FOURNISSEURS[id];
+  if (!fournisseur) return erreur("Fournisseur inconnu", 400);
+  if (fournisseur.vars.some(function (v) { return !env[v]; })) {
+    return erreur("La connexion " + fournisseur.nom + " n'est pas encore configurée sur le serveur", 500);
+  }
+  if (!env.SESSION_SECRET) return erreur("SESSION_SECRET manquant sur le serveur", 500);
+
+  const redirect = new URL(request.url).origin + "/";
+  let profil = null;
+  try {
+    if (id === "github") profil = await profilGitHub(body.code, redirect, env);
+    else if (id === "microsoft") profil = await profilMicrosoft(body.code, redirect, env);
+    else profil = await profilGoogle(body.code, env);
+  } catch (e) {
+    return erreur("Impossible de joindre " + fournisseur.nom, 502);
+  }
+  if (!profil) return erreur("Connexion refusée par " + fournisseur.nom, 401);
+
+  const propre = {
+    sub: String(profil.sub).slice(0, 80),
+    name: String(profil.name || "").slice(0, 80),
+    given_name: String(profil.given_name || "").slice(0, 40),
+    picture: /^https:\/\//.test(profil.picture || "") ? profil.picture : "",
+  };
+  const payload = Object.assign({}, propre, { exp: Math.floor(Date.now() / 1000) + DUREE });
+  const p = enBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
+  const session = p + "." + (await signer(p, env.SESSION_SECRET));
+  return json({ session: session, profile: propre }, 200);
+}
