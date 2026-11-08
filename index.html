@@ -239,12 +239,14 @@
 <div id="login" class="ecran" hidden>
   <svg class="logo grand"><use href="#z"/></svg>
   <h1>ZEPHON</h1>
-  <p>Ton IA, ton espace. Connecte-toi pour retrouver tes discussions.</p>
   <button id="gbtn" class="gbtn" type="button">
     <span class="brille"></span>
     <svg class="g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
     <span id="gtxt">Continuer avec Google</span>
   </button>
+  <button id="ghbtn" class="gbtn" type="button" hidden><span class="brille"></span><svg class="g" viewBox="0 0 24 24" aria-hidden="true" fill="#ffffff"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.69 1.25 3.35.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.18-3.08-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.18 1.83 1.18 3.08 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56C20.21 21.38 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg><span>Continuer avec GitHub</span></button>
+  <button id="msbtn" class="gbtn" type="button" hidden><span class="brille"></span><svg class="g" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg><span>Continuer avec Microsoft</span></button>
+  <p>Ton IA, ton espace. Connecte-toi pour retrouver tes discussions.</p>
   <p id="loginMsg" class="err" role="alert"></p>
 </div>
 
@@ -338,7 +340,10 @@
   // ====== RÉGLAGE ======
   // Colle ici ton identifiant client Google (il finit par .apps.googleusercontent.com).
   // Laisse vide pour désactiver la connexion Google.
-  var GOOGLE_CLIENT_ID = "";
+  var GOOGLE_CLIENT_ID = "95712245194-5sva41l8r9ok03fh11litde9go8v6et7.apps.googleusercontent.com";
+  var GITHUB_CLIENT_ID = "Ov23liypnz29YKEqKaAj"; // ID client GitHub (vide = bouton caché)
+  var MICROSOFT_CLIENT_ID = ""; // ID d'application Microsoft (vide = bouton caché)
+  var CONNEXION = !!(GOOGLE_CLIENT_ID || GITHUB_CLIENT_ID || MICROSOFT_CLIENT_ID);
 
   var MODELES = [
     { id: "gemini", nom: "Gemini", par: "Google", desc: "Polyvalent et très complet. Le bon choix par défaut." },
@@ -354,6 +359,7 @@
   var enCours = false;
   var currentId = null;
   var codeClient = null;
+  var erreurGoogle = "";
   var ia = "gemini";
   try {
     var memoIA = localStorage.getItem("zephon_ia");
@@ -445,13 +451,13 @@
             : "Connexion annulée.");
         }
       });
-    } catch (e) {}
+    } catch (e) { erreurGoogle = e.message || "erreur inconnue"; }
   }
-  async function echanger(code) {
+  async function echanger(code, fournisseur) {
     etatLogin(true, "");
     try {
       var r = await fetch("/api/login", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: code })
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: code, provider: fournisseur || "google" })
       });
       var d = await r.json();
       if (!r.ok) throw new Error((d.error && d.error.message) || "Connexion impossible");
@@ -464,6 +470,27 @@
       etatLogin(false, e.message);
     }
   }
+  function connexionRedirect(fournisseur) {
+    var etat = fournisseur + "." + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try { sessionStorage.setItem("zephon_state", etat); } catch (e) {}
+    var retour = encodeURIComponent(location.origin + "/");
+    var url = fournisseur === "github"
+      ? "https://github.com/login/oauth/authorize?client_id=" + encodeURIComponent(GITHUB_CLIENT_ID) + "&redirect_uri=" + retour + "&scope=read:user&state=" + encodeURIComponent(etat)
+      : "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=" + encodeURIComponent(MICROSOFT_CLIENT_ID) + "&response_type=code&redirect_uri=" + retour + "&response_mode=query&scope=" + encodeURIComponent("openid profile email") + "&state=" + encodeURIComponent(etat);
+    location.href = url;
+  }
+  // Au retour de GitHub ou Microsoft : lit le code et vérifie l'état
+  function retourFournisseur() {
+    var p = new URLSearchParams(location.search);
+    var code = p.get("code"), etat = p.get("state");
+    if (!code || !etat) return null;
+    var attendu = "";
+    try { attendu = sessionStorage.getItem("zephon_state") || ""; sessionStorage.removeItem("zephon_state"); } catch (e) {}
+    history.replaceState(null, "", location.pathname);
+    if (!attendu || attendu !== etat) return { erreur: "Connexion annulée : vérification échouée. Réessaie." };
+    return { code: code, provider: etat.split(".")[0] };
+  }
+
   function afficherLogin(message) {
     $("app").hidden = true;
     $("login").hidden = false;
@@ -880,15 +907,37 @@
     msgReg("Discussions effacées ✓");
   });
   $("btnDeco").addEventListener("click", function () { deconnecter(""); });
+  $("ghbtn").addEventListener("click", function () { connexionRedirect("github"); });
+  $("msbtn").addEventListener("click", function () { connexionRedirect("microsoft"); });
   $("gbtn").addEventListener("click", function () {
-    if (!codeClient) { $("loginMsg").textContent = "Google se charge encore, réessaie dans une seconde."; return; }
+    if (!codeClient && window.google && google.accounts && google.accounts.oauth2) initGoogle();
+    if (!codeClient) {
+      $("loginMsg").textContent = erreurGoogle
+        ? "Google refuse de se charger : " + erreurGoogle
+        : (window.google
+          ? "Google n’est pas encore prêt. Recharge la page."
+          : "Le script Google est bloqué. Désactive la protection contre le pistage pour ce site (icône bouclier dans la barre d’adresse), puis recharge la page.");
+      return;
+    }
     etatLogin(true, "");
     codeClient.requestCode();
   });
 
   // ---------- Démarrage ----------
-  if (!GOOGLE_CLIENT_ID) {
-    afficherApp(); // connexion Google désactivée : mode invité
+  // Ne montre que les IA dont la clé existe sur le serveur.
+  function chargerConfig() {
+    return fetch("/api/config").then(function (r) { return r.json(); }).then(function (c) {
+      var dispo = c.providers || [];
+      MODELES = MODELES.filter(function (x) { return dispo.indexOf(x.id) !== -1; });
+      if (MODELES.length && !MODELES.some(function (x) { return x.id === ia; })) ia = MODELES[0].id;
+    }).catch(function () {});
+  }
+  function demarrer() {
+  $("gbtn").hidden = !GOOGLE_CLIENT_ID;
+  $("ghbtn").hidden = !GITHUB_CLIENT_ID;
+  $("msbtn").hidden = !MICROSOFT_CLIENT_ID;
+  if (!CONNEXION) {
+    afficherApp(); // aucune connexion configurée : mode invité
   } else {
     var memo = "";
     try { memo = localStorage.getItem("zephon_session") || ""; } catch (e) {}
@@ -897,12 +946,22 @@
       profil = decoder(memo);
       afficherApp();
     } else {
-      afficherLogin("");
+      var retour = retourFournisseur();
+      if (retour && retour.erreur) {
+        afficherLogin(retour.erreur);
+      } else if (retour) {
+        afficherLogin("");
+        echanger(retour.code, retour.provider);
+      } else {
+        afficherLogin("");
+      }
       setTimeout(function () {
         if (!window.google && !$("login").hidden) $("loginMsg").textContent = "Google ne se charge pas. Vérifie ta connexion et recharge la page.";
       }, 6000);
     }
   }
+  }
+  chargerConfig().then(demarrer);
 </script>
 <script src="https://accounts.google.com/gsi/client" async defer onload="if (GOOGLE_CLIENT_ID) initGoogle()"></script>
 </body>
